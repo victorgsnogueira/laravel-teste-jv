@@ -7,6 +7,7 @@ use App\Models\Pix;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Gate;
 
 class PixController extends Controller
 {
@@ -50,6 +51,13 @@ class PixController extends Controller
         ], 201);
     }
 
+    public function index(Request $request): JsonResponse
+    {
+        $pixes = $request->user()->pixes()->latest()->paginate(10);
+
+        return response()->json($pixes);
+    }
+
     public function show(string $token): JsonResponse
     {
         $pix = Pix::where('token', $token)->firstOrFail();
@@ -73,8 +81,14 @@ class PixController extends Controller
         ]);
     }
 
-    public function index(): JsonResponse
+    public function stats(): JsonResponse
     {
-        return response()->json($this->getPixStats());
+        $stats = [
+            'generated' => Pix::where('user_id', auth()->id())->where('status', 'generated')->count(),
+            'paid' => Pix::where('user_id', auth()->id())->where('status', 'paid')->count(),
+            'expired' => Pix::where('user_id', auth()->id())->where('status', 'expired')->count(),
+        ];
+
+        return response()->json($stats);
     }
 }

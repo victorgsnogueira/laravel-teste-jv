@@ -18,7 +18,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::post('/pix', [PixController::class, 'store']);
-    Route::get('/pix/stats', [PixController::class, 'index']);
+    Route::get('/pix', [PixController::class, 'index']); // Rota para listar PIX
+    Route::get('/pix/stats', [PixController::class, 'stats']);
 });
 
 // Rota pública do PIX
