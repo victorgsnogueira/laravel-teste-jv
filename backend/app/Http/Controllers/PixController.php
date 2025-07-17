@@ -14,9 +14,9 @@ class PixController extends Controller
     private function getPixStats(): array
     {
         return [
-            'generated' => Pix::where('status', 'generated')->count(),
-            'paid' => Pix::where('status', 'paid')->count(),
-            'expired' => Pix::where('status', 'expired')->count()
+            'generated' => Pix::where('user_id', auth()->id())->count(), // Total de PIX criados
+            'paid' => Pix::where('user_id', auth()->id())->where('status', 'paid')->count(),
+            'expired' => Pix::where('user_id', auth()->id())->where('status', 'expired')->count(),
         ];
     }
 
@@ -35,7 +35,7 @@ class PixController extends Controller
             'user_id' => auth()->id(),
             'token' => Str::uuid(),
             'amount' => $request->amount,
-            'expires_at' => now()->addMinutes(10)
+            'expires_at' => now()->addMinutes(1) // Alterado para 1 minuto
         ]);
 
         $this->broadcastPixUpdate();
@@ -62,6 +62,15 @@ class PixController extends Controller
     {
         $pix = Pix::where('token', $token)->firstOrFail();
 
+        // 1. Se o PIX já foi pago ou expirado, apenas retorne o status atual.
+        if ($pix->status !== 'generated') {
+            return response()->json([
+                'message' => 'Este PIX já foi processado.',
+                'status' => $pix->status
+            ]);
+        }
+
+        // 2. Se expirou, marque como expirado.
         if ($pix->isExpired()) {
             $pix->markAsExpired();
             $this->broadcastPixUpdate();
@@ -72,6 +81,7 @@ class PixController extends Controller
             ]);
         }
 
+        // 3. Se não, marque como pago.
         $pix->markAsPaid();
         $this->broadcastPixUpdate();
         
@@ -84,7 +94,7 @@ class PixController extends Controller
     public function stats(): JsonResponse
     {
         $stats = [
-            'generated' => Pix::where('user_id', auth()->id())->where('status', 'generated')->count(),
+            'generated' => Pix::where('user_id', auth()->id())->count(), // Total de PIX criados
             'paid' => Pix::where('user_id', auth()->id())->where('status', 'paid')->count(),
             'expired' => Pix::where('user_id', auth()->id())->where('status', 'expired')->count(),
         ];
