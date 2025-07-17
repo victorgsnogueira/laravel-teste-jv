@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PixStatusUpdated;
 use App\Models\Pix;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,6 +10,20 @@ use Illuminate\Support\Str;
 
 class PixController extends Controller
 {
+    private function getPixStats(): array
+    {
+        return [
+            'generated' => Pix::where('status', 'generated')->count(),
+            'paid' => Pix::where('status', 'paid')->count(),
+            'expired' => Pix::where('status', 'expired')->count()
+        ];
+    }
+
+    private function broadcastPixUpdate(): void
+    {
+        broadcast(new PixStatusUpdated($this->getPixStats()));
+    }
+
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -21,6 +36,8 @@ class PixController extends Controller
             'amount' => $request->amount,
             'expires_at' => now()->addMinutes(10)
         ]);
+
+        $this->broadcastPixUpdate();
 
         return response()->json([
             'message' => 'PIX gerado com sucesso',
@@ -39,6 +56,8 @@ class PixController extends Controller
 
         if ($pix->isExpired()) {
             $pix->markAsExpired();
+            $this->broadcastPixUpdate();
+            
             return response()->json([
                 'message' => 'PIX expirado',
                 'status' => 'expired'
@@ -46,6 +65,7 @@ class PixController extends Controller
         }
 
         $pix->markAsPaid();
+        $this->broadcastPixUpdate();
         
         return response()->json([
             'message' => 'Pagamento confirmado com sucesso',
@@ -55,12 +75,6 @@ class PixController extends Controller
 
     public function index(): JsonResponse
     {
-        $stats = [
-            'generated' => Pix::where('status', 'generated')->count(),
-            'paid' => Pix::where('status', 'paid')->count(),
-            'expired' => Pix::where('status', 'expired')->count()
-        ];
-
-        return response()->json($stats);
+        return response()->json($this->getPixStats());
     }
 }
