@@ -14,9 +14,9 @@ class PixController extends Controller
     private function getPixStats(): array
     {
         return [
-            'generated' => Pix::where('status', 'generated')->count(),
-            'paid' => Pix::where('status', 'paid')->count(),
-            'expired' => Pix::where('status', 'expired')->count()
+            'generated' => Pix::where('user_id', auth()->id())->count(), // Total de PIX criados
+            'paid' => Pix::where('user_id', auth()->id())->where('status', 'paid')->count(),
+            'expired' => Pix::where('user_id', auth()->id())->where('status', 'expired')->count(),
         ];
     }
 
